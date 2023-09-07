@@ -6,24 +6,30 @@ error_reporting(0);
 
 require_once(__DIR__ . '/../../wp-load.php');
 require_once(__DIR__ . '/../helpers/headers.php');
-require_once(__DIR__ . '/../helpers/string.php');
 require_once(__DIR__ . '/../helpers/login.php');
 require_once(__DIR__ . '/../helpers/csv.php');
 
-$testing = true; // Cambiar a false en el servidor
+$testing = false; // Cambiar a false en el servidor
 
 if (!($testing || isAllowed())) {
   CsvImportResponse::failure([], 'No se ha podido iniciar sesión');
-} else if (!isset($_FILES['file'])) {
+} else if (!isset($_FILES['piezas-csv'])) {
   CsvImportResponse::failure([], 'Archivo no subido correctamente');
-} else if (stripos($_FILES['file']['name'], '.csv') === false) {
+// } else if (stripos($_FILES['piezas-csv']['name'], '.csv') === false) {
+} else if (pathinfo($_FILES['piezas-csv']['name'], PATHINFO_EXTENSION) != 'csv') {
   CsvImportResponse::failure([], 'El archivo debe tener formato CSV');
 }
 
-$rows = readCSV($_FILES['file']['tmp_name']);
+$rows = readCSV($_FILES['piezas-csv']['tmp_name']);
 
 $idDespiece = 63;
 $warnings = [];
+
+wp_insert_term(
+  'Piezas',
+  'product_cat',
+  [ 'slug' => 'piezas' ]
+);
 
 for ($i = 1; $i < count($rows); $i++) {
   $row = $rows[$i];
@@ -70,11 +76,11 @@ function add_part(array $row, int $position, &$warning_arr)
       'post_parent' => '',
       'post_type' => "product"
     ]);
+    $product = wc_get_product($post_id);
+    $product->set_sku($ref);
+    $product->save();
   }
 
-  $product = wc_get_product($post_id);
-  $product->set_sku($ref);
-  $product->save();
 
   try {
     set_attrs($post_id, $ref, $price);
@@ -98,14 +104,6 @@ function add_part(array $row, int $position, &$warning_arr)
     ));
   }
 
-  wp_insert_term(
-    'Piezas',
-    'product_cat',
-    [
-      'description' => '',
-      'slug' => 'piezas',
-    ]
-  );
   wp_set_object_terms($post_id, 'Piezas', 'product_cat');
 
 }

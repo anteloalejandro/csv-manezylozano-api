@@ -6,21 +6,20 @@ error_reporting(0);
 
 require_once(__DIR__ . '/../../wp-load.php');
 require_once(__DIR__ . '/../helpers/headers.php');
-require_once(__DIR__ . '/../helpers/string.php');
 require_once(__DIR__ . '/../helpers/login.php');
 require_once(__DIR__ . '/../helpers/csv.php');
 
-$testing = true; // Cambiar a false en el servidor
+$testing = false; // Cambiar a false en el servidor
 
 if (!($testing || isAllowed())) {
   CsvImportResponse::failure([], 'No se ha podido iniciar sesión');
-} else if (!isset($_FILES['despiece-csv'])) {
+} else if (!isset($_FILES['despieces-csv'])) {
   CsvImportResponse::failure([], 'Archivo no subido correctamente');
-} else if (stripos($_FILES['despiece-csv']['name'], '.csv') === false) {
+} else if (pathinfo($_FILES['despieces-csv']['name'], PATHINFO_EXTENSION) != 'csv') {
   CsvImportResponse::failure([], 'El archivo debe tener formato CSV');
 }
 
-$rows = readCSV($_FILES['despiece-csv']['tmp_name']);
+$rows = readCSV($_FILES['despieces-csv']['tmp_name']);
 
 usort($rows, function ($a, $b) {
   $a_pos = $a[2];
@@ -30,7 +29,6 @@ usort($rows, function ($a, $b) {
 });
 $warnings = [];
 
-delete_old_assemblies();
 for ($i = 1; $i < count($rows); $i++) {
   $row = $rows[$i];
   if (!is_array($row)) {
@@ -182,19 +180,4 @@ function add_part_to_bundle($idDespiece, $product_id, $ref, $quantity = '1', $id
   }
 
   update_post_meta($idDespiece, 'woosb_ids', $despiece_bundle);
-}
-
-function delete_old_assemblies()
-{
-  /* TO-DO
-      Borrar tras acabar de insertar
-  */
-  $existing_assemblies = get_posts([
-    'post_type' => 'product',
-    'meta_key' => 'woosb_ids'
-  ]);
-  foreach ($existing_assemblies as $a) {
-    $id = is_int($a) ? $a : $a->ID;
-    wp_delete_post($id, true);
-  }
 }
