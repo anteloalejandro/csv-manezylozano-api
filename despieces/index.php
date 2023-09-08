@@ -9,7 +9,7 @@ require_once(__DIR__ . '/../helpers/headers.php');
 require_once(__DIR__ . '/../helpers/login.php');
 require_once(__DIR__ . '/../helpers/csv.php');
 
-$testing = false; // Cambiar a false en el servidor
+$testing = true; // Cambiar a false en el servidor
 
 if (!($testing || isAllowed())) {
   CsvImportResponse::failure([], 'No se ha podido iniciar sesión');
@@ -21,18 +21,6 @@ if (!($testing || isAllowed())) {
 
 $rows = readCSV($_FILES['despieces-csv']['tmp_name']);
 
-usort($rows, function ($a, $b) {
-  $a_assembly = $a[1];
-  $b_assembly = $a[1];
-  $a_pos = (int)$a[2];
-  $b_pos = (int)$b[2];
-
-  if ($a_assembly == $b_assembly) {
-    return $a_pos - $b_pos;
-  }
-
-  return $a_assembly > $b_assembly ? 1 : -1;
-});
 $warnings = [];
 
 for ($i = 1; $i < count($rows); $i++) {
@@ -46,7 +34,27 @@ for ($i = 1; $i < count($rows); $i++) {
     continue;
   }
   try {
-    add_assembly($row, $i, $warnings);
+    $id = add_assembly($row, $warnings);
+    if ($id) {
+      $name = $row[1];
+      $products = [];
+      $filtered_rows = array_filter($rows, fn ($r) => $r[1] == $name);
+      foreach ($filtered_rows as $r) {
+        [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $r;
+
+        $part_id = wc_get_product_id_by_sku($part_ref);
+        if ($part_id <= 0) continue;
+
+        array_push($products, [
+          'id' => "$part_id",
+          'sku' => "$part_ref",
+          'qty' => "$part_qty",
+          'pos' => "$part_position"
+        ]);
+      }
+
+      add_parts_to_bundle($id, $products);
+    }
   } catch (Throwable $e) {
     CsvImportResponse::failure($warnings, $e->getMessage());
   }
@@ -54,14 +62,14 @@ for ($i = 1; $i < count($rows); $i++) {
 
 CsvImportResponse::success($warnings);
 
-function add_assembly(array $row, $idx, &$warning_arr)
+function add_assembly(array $row, &$warning_arr)
 {
   [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $row;
 
   $part_id = wc_get_product_id_by_sku($part_ref);
   if ($part_id <= 0) {
     array_push($warning_arr, new CsvWarning('part', $part_ref, "Pieza $part_ref no encontrada"));
-    return;
+    return false;
   }
   $assemblies = get_posts([
     'name' => sanitize_title($assembly_name),
@@ -88,7 +96,7 @@ function add_assembly(array $row, $idx, &$warning_arr)
   create_category_if_not_exists($category_name);
   wp_set_object_terms($assembly_id, $category_name, 'product_cat');
   convert_to_bundle($assembly_id);
-  add_part_to_bundle($assembly_id, $part_id, $part_ref, $idx, $part_qty);
+  return $assembly_id;
 }
 
 function create_category_if_not_exists($category_name)
@@ -147,7 +155,7 @@ function convert_to_bundle($assembly_id)
 
 }
 
-function add_part_to_bundle($idDespiece, $product_id, $ref, $idx, $quantity = '1')
+function add_parts_to_bundle($idDespiece, array $products)
 {
   $despiece_bundle = get_post_meta($idDespiece, 'woosb_ids', true);
   if (is_serialized($despiece_bundle)) {
@@ -157,29 +165,39 @@ function add_part_to_bundle($idDespiece, $product_id, $ref, $idx, $quantity = '1
     $despiece_bundle = [];
   }
 
+  $i = 0;
+  foreach($despiece_bundle as &$despiece) {
+    $despiece['pos'] ??= $i;
+    $i++;
+  }
 
-  // $bundle_id = $idx;
-  $bundle_id = sprintf("%'.013d", $idx);
+  $bundles = [];
+  for ($i = 0; $i < count($products); $i++) {
+    $product = $products[$i];
+    $bundle_id = sprintf("%'.013d", $i);
 
-  $bundle_item = [
-    $bundle_id => [
-      'id' => "$product_id",
-      'sku' => $ref,
-      'qty' => "$quantity",
-      'pos' => $idx
-    ]
-  ];
-  $replaced = false;
-  foreach ($despiece_bundle as &$despiece) {
-    if ($despiece['sku'] == reset($bundle_item)['sku']) {
-      $despiece = reset($bundle_item);
-      $replaced = true;
-      break;
+    $bundle_item = [
+      $bundle_id => [
+        'id' => $product['id'],
+        'sku' => $product['sku'],
+        'qty' => $product['qty'],
+        'pos' => $product['pos']
+      ]
+    ];
+
+    $replaced = false;
+    foreach ($despiece_bundle as &$despiece) {
+      if ($despiece['sku'] == reset($bundle_item)['sku']) {
+        $despiece = reset($bundle_item);
+        $replaced = true;
+        break;
+      }
+    }
+    if (!$replaced) {
+      $despiece_bundle += $bundle_item;
     }
   }
-  if (!$replaced) {
-    $despiece_bundle += $bundle_item;
-  }
 
+  usort($despiece_bundle, fn ($a, $b) => (int)$a['pos'] - (int)$b['pos']);
   update_post_meta($idDespiece, 'woosb_ids', $despiece_bundle);
 }
