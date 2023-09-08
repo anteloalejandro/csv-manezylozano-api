@@ -22,10 +22,16 @@ if (!($testing || isAllowed())) {
 $rows = readCSV($_FILES['despieces-csv']['tmp_name']);
 
 usort($rows, function ($a, $b) {
-  $a_pos = $a[2];
-  $b_pos = $b[2];
+  $a_assembly = $a[1];
+  $b_assembly = $a[1];
+  $a_pos = (int)$a[2];
+  $b_pos = (int)$b[2];
 
-  return (int)$a_pos - (int)$b_pos;
+  if ($a_assembly == $b_assembly) {
+    return $a_pos - $b_pos;
+  }
+
+  return $a_assembly > $b_assembly ? 1 : -1;
 });
 $warnings = [];
 
@@ -82,7 +88,7 @@ function add_assembly(array $row, $idx, &$warning_arr)
   create_category_if_not_exists($category_name);
   wp_set_object_terms($assembly_id, $category_name, 'product_cat');
   convert_to_bundle($assembly_id);
-  add_part_to_bundle($assembly_id, $part_id, $part_ref, $part_qty, $idx);
+  add_part_to_bundle($assembly_id, $part_id, $part_ref, $idx, $part_qty);
 }
 
 function create_category_if_not_exists($category_name)
@@ -141,7 +147,7 @@ function convert_to_bundle($assembly_id)
 
 }
 
-function add_part_to_bundle($idDespiece, $product_id, $ref, $quantity = '1', $idx = 0)
+function add_part_to_bundle($idDespiece, $product_id, $ref, $idx, $quantity = '1')
 {
   $despiece_bundle = get_post_meta($idDespiece, 'woosb_ids', true);
   if (is_serialized($despiece_bundle)) {
@@ -152,19 +158,15 @@ function add_part_to_bundle($idDespiece, $product_id, $ref, $quantity = '1', $id
   }
 
 
-  $bundle_id = '';
-  if ($idx <= 0) {
-    $bundle_id = bin2hex(random_bytes(7));
-    $bundle_id = substr_replace($bundle_id, '', 0, 1); // truncar 1 para tener 13
-  } else {
-    $bundle_id = sprintf("%'.013d", $idx);
-  }
+  // $bundle_id = $idx;
+  $bundle_id = sprintf("%'.013d", $idx);
 
   $bundle_item = [
     $bundle_id => [
       'id' => "$product_id",
       'sku' => $ref,
-      'qty' => "$quantity"
+      'qty' => "$quantity",
+      'pos' => $idx
     ]
   ];
   $replaced = false;
