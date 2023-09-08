@@ -9,7 +9,7 @@ require_once(__DIR__ . '/../helpers/headers.php');
 require_once(__DIR__ . '/../helpers/login.php');
 require_once(__DIR__ . '/../helpers/csv.php');
 
-$testing = true; // Cambiar a false en el servidor
+$testing = false; // Cambiar a false en el servidor
 
 if (!($testing || isAllowed())) {
   CsvImportResponse::failure([], 'No se ha podido iniciar sesión');
@@ -29,7 +29,7 @@ for ($i = 1; $i < count($rows); $i++) {
     array_push($warnings, new CsvWarning(
       'pieza',
       'none',
-      "Error de formato en la fila " . $i + 1
+      "Error de formato en la fila " . ($i + 1)
     ));
     continue;
   }
