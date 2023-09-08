@@ -75,4 +75,4 @@ Artículo,Descripción,P.V.P.,Ubicación
 
 ## Importador
 
-El código del importador que utiliza está api se encuentra [aquí](https://github.com/anteloalejandro/csv-manezylozano-api).
+El código del importador que utiliza está api se encuentra [aquí](https://github.com/anteloalejandro/csv-manezylozano-app).
