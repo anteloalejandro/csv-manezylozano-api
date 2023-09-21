@@ -1,15 +1,17 @@
 <?php
 
-ini_set('display_errors', '0');
+/* ini_set('display_errors', '0');
 ini_set('display_startup_errors', '0');
-error_reporting(0);
+error_reporting(0); */
+
+set_time_limit(300);
 
 require_once(__DIR__ . '/../../wp-load.php');
 require_once(__DIR__ . '/../helpers/headers.php');
 require_once(__DIR__ . '/../helpers/login.php');
 require_once(__DIR__ . '/../helpers/csv.php');
 
-$testing = false; // Cambiar a false en el servidor
+$testing = true; // Cambiar a false en el servidor
 
 if (!($testing || isAllowed())) {
   CsvImportResponse::failure([], 'No se ha podido iniciar sesión');
@@ -31,7 +33,7 @@ wp_insert_term(
   [ 'slug' => 'piezas' ]
 );
 
-for ($i = 1; $i < count($rows); $i++) {
+for ($i = 2; $i < count($rows); $i++) {
   $row = $rows[$i];
 
   if (!is_array($row)) {
@@ -45,7 +47,12 @@ for ($i = 1; $i < count($rows); $i++) {
   try {
     add_part($row, $i, $warnings);
   } catch (Throwable $e) {
-    CsvImportResponse::failure($warnings, $e->getMessage());
+    $error_str = json_encode([
+      "stack_trace" => "$e",
+      "row" => $i + 1,
+      // "data" => $row
+    ]);
+    CsvImportResponse::failure($warnings, $error_str);
   }
 }
 
@@ -125,25 +132,30 @@ function set_common_attrs($post_id)
     'is_variation' => '1',
     'is_taxonomy' => '1'
   ]]);
-  update_post_meta($post_id, 'total_sales', '0');
-  update_post_meta($post_id, '_tax_status', 'taxable');
-  update_post_meta($post_id, '_tax_class', 'taxable');
-  update_post_meta($post_id, '_manage_stock', 'no');
-  update_post_meta($post_id, '_backorders', 'no');
-  update_post_meta($post_id, '_sold_individually', 'no');
-  update_post_meta($post_id, '_virtual', 'no');
-  update_post_meta($post_id, '_downloadable', 'no');
-  update_post_meta($post_id, '_download_limit', '-1');
-  update_post_meta($post_id, '_download_expiry', '-1');
-  update_post_meta($post_id, '_stock', '');
-  update_post_meta($post_id, '_stock_status', 'instock');
-  update_post_meta($post_id, '_wc_average_rating', '0');
-  update_post_meta($post_id, '_wc_review_count', '0');
-  update_post_meta($post_id, '_product_version', '7.6.0');
-  update_post_meta($post_id, '_edit_lock', ''); # https://wordpress.stackexchange.com/questions/135480/why-are-simple-updates-to-wp-postmetas-edit-lock-so-slow
-  update_post_meta($post_id, '_edit_last', '1');
-  update_post_meta($post_id, '_woovr_active', 'default');
-  update_post_meta($post_id, '_visibility', 'visible');
-  update_post_meta($post_id, '_purchase_note', "");
-  update_post_meta($post_id, '_featured', "no");
+  wp_update_post([
+    'ID' => $post_id,
+    'meta_input' => [
+      'total_sales' => '0',
+      '_tax_status' => 'taxable',
+      '_tax_class' => 'taxable',
+      '_manage_stock' => 'no',
+      '_backorders' => 'no',
+      '_sold_individually' => 'no',
+      '_virtual' => 'no',
+      '_downloadable' => 'no',
+      '_download_limit' => '-1',
+      '_download_expiry' => '-1',
+      '_stock' => '',
+      '_stock_status' => 'instock',
+      '_wc_average_rating' => '0',
+      '_wc_review_count' => '0',
+      '_product_version' => '7.6.0',
+      '_edit_lock' => '', # https://wordpress.stackexchange.com/questions/135480/why-are-simple-updates-to-wp-postmetas-edit-lock-so-slow
+      '_edit_last' => '1',
+      '_woovr_active' => 'default',
+      '_visibility' => 'visible',
+      '_purchase_note' => "",
+      '_featured' => "no"
+    ]
+  ]);
 }
