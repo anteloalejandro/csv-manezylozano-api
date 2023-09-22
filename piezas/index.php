@@ -32,18 +32,17 @@ wp_insert_term(
   [ 'slug' => 'piezas' ]
 );
 
-for ($i = 1; $i < count($rows); $i++) {
+CSVforEach($_FILES['piezas-csv']['tmp_name'], function ($i, $row, &$warnings) {
+  if ($i == 0) return;
   set_time_limit(30);
-  $row = $rows[$i];
 
-  echo "$i<br>\n";
   if (!is_array($row) || $row[1] == '') {
     array_push($warnings, new CsvWarning(
       'pieza',
       'none',
-      "Ignorando la fila " . $i + 1 . "por un error de formato"
+      "Ignorando la fila " . $i + 1 . " por un error de formato"
     ));
-    continue;
+    return;
   }
   try {
     add_part($row, $i, $warnings);
@@ -55,7 +54,7 @@ for ($i = 1; $i < count($rows); $i++) {
     ]);
     CsvImportResponse::failure($warnings, $error_str);
   }
-}
+}, $warnings);
 
 CsvImportResponse::success($warnings);
 

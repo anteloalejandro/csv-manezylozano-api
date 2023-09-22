@@ -18,6 +18,23 @@ function readCSV(string $filename)
   return $rows;
 }
 
+function CSVforEach(string $filename, $callback, &$warnings)
+{
+  $file = fopen($filename, 'r+');
+
+  if ($file === false) return false;
+
+  $i = 0;
+  while (!feof($file)) {
+    $row = fgetcsv($file, null, ';', '"');
+    if ($row !== false) {
+      $callback($i, $row, $warnings);
+    }
+    $i++;
+  }
+  fclose($file);
+}
+
 class CsvWarning {
   public $dataType;
   public $ref;
