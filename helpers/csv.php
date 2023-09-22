@@ -8,7 +8,7 @@ function readCSV(string $filename)
 
   $rows = [];
   while (!feof($file)) {
-    $row = fgetcsv($file, null, ',', '"');
+    $row = fgetcsv($file, null, ';', '"');
     if ($row !== false) {
       array_push($rows, $row);
     }
@@ -40,20 +40,20 @@ class CsvImportResponse {
    * @param $error bool
    * @param CsvWarning[] $warnings
    */
-  public function __construct(bool $error, array $warnings, string $error_msg = '')
+  public function __construct(bool $error, array $warnings, string $error_msg)
   {
     $this->error = $error;
     $this->error_msg = $error_msg;
     $this->warnings = $warnings;
   }
 
-  public static function success(array $warnings = [])
+  public static function success(array $warnings)
   {
-    echo json_encode(new CsvImportResponse(false, $warnings));
+    echo json_encode(new CsvImportResponse(false, $warnings, ''));
     die();
   }
 
-  public static function failure(array $warnings = [], string $error_msg)
+  public static function failure(array $warnings, string $error_msg)
   {
     echo json_encode(new CsvImportResponse(true, $warnings, $error_msg));
     die();

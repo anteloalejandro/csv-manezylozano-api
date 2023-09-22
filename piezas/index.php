@@ -4,7 +4,7 @@
 ini_set('display_startup_errors', '0');
 error_reporting(0); */
 
-set_time_limit(300);
+// set_time_limit(300);
 
 require_once(__DIR__ . '/../../wp-load.php');
 require_once(__DIR__ . '/../helpers/headers.php');
@@ -24,7 +24,6 @@ if (!($testing || isAllowed())) {
 
 $rows = readCSV($_FILES['piezas-csv']['tmp_name']);
 
-$idDespiece = 63;
 $warnings = [];
 
 wp_insert_term(
@@ -33,14 +32,16 @@ wp_insert_term(
   [ 'slug' => 'piezas' ]
 );
 
-for ($i = 2; $i < count($rows); $i++) {
+for ($i = 1; $i < count($rows); $i++) {
+  set_time_limit(30);
   $row = $rows[$i];
 
-  if (!is_array($row)) {
+  echo "$i<br>\n";
+  if (!is_array($row) || $row[1] == '') {
     array_push($warnings, new CsvWarning(
       'pieza',
       'none',
-      "Error de formato en la fila " . $i + 1
+      "Ignorando la fila " . $i + 1 . "por un error de formato"
     ));
     continue;
   }
