@@ -20,12 +20,10 @@ if (!($testing || isAllowed())) {
 }
 
 $rows = readCSV($_FILES['despieces-csv']['tmp_name']);
-
-$warnings = [];
-
-for ($i = 1; $i < count($rows); $i++) {
-  $row = $rows[$i];
-  if (!is_array($row)) {
+$unique_assemblies = [];
+foreach ($rows as $i => $r) {
+  if ($i == 0) continue;
+  if (!is_array($r)) {
     array_push($warnings, new CsvWarning(
       'pieza',
       'none',
@@ -33,10 +31,19 @@ for ($i = 1; $i < count($rows); $i++) {
     ));
     continue;
   }
+  $arr = ['category' => $r[0], 'assembly' => $r[1]];
+  if (in_array($arr, $r)) continue;
+  array_push($unique_assemblies, $arr);
+}
+
+$warnings = [];
+
+foreach ($unique_assemblies as $i => $row) {
+  if ($i == 0) continue;
   try {
-    $id = add_assembly($row, $warnings);
+    $id = add_assembly($row['category'], $row['assembly'], $warnings);
     if ($id) {
-      $name = $row[1];
+      $name = $row['assembly'];
       $products = [];
       $filtered_rows = array_filter($rows, fn ($r) => $r[1] == $name);
       foreach ($filtered_rows as $r) {
@@ -62,15 +69,8 @@ for ($i = 1; $i < count($rows); $i++) {
 
 CsvImportResponse::success($warnings);
 
-function add_assembly(array $row, &$warning_arr)
+function add_assembly($category_name, $assembly_name, &$warning_arr)
 {
-  [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $row;
-
-  $part_id = wc_get_product_id_by_sku($part_ref);
-  if ($part_id <= 0) {
-    array_push($warning_arr, new CsvWarning('assembly', "$part_ref", "Pieza $part_ref no encontrada"));
-    return false;
-  }
   $assemblies = get_posts([
     'name' => sanitize_title($assembly_name),
     'post_type' => 'product'
