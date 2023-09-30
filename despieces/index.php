@@ -68,7 +68,7 @@ function add_assembly(array $row, &$warning_arr)
 
   $part_id = wc_get_product_id_by_sku($part_ref);
   if ($part_id <= 0) {
-    array_push($warning_arr, new CsvWarning('assembly', $part_ref, "Pieza $part_ref no encontrada"));
+    array_push($warning_arr, new CsvWarning('assembly', "$part_ref", "Pieza $part_ref no encontrada"));
     return false;
   }
   $assemblies = get_posts([
@@ -112,7 +112,6 @@ function create_category_if_not_exists($category_name)
     $category_name,
     'product_cat',
     [
-      'description' => '',
       'slug' => sanitize_title($category_name)
     ]
   );

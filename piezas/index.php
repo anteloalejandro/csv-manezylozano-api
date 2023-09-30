@@ -117,9 +117,14 @@ function add_part(array $row, int $position, &$warning_arr)
 
 function set_attrs($post_id, $ref, $price)
 {
-  update_post_meta($post_id, '_sku', $ref);
-  update_post_meta($post_id, '_regular_price', $price);
-  update_post_meta($post_id, '_price', $price);
+  wp_update_post([
+    'ID' => $post_id,
+    'meta_input' => [
+      '_sku' => $ref,
+      '_regular_price' => $price,
+      '_price' => $price
+    ]
+  ]);
 }
 
 function set_common_attrs($post_id)
