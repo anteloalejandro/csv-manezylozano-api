@@ -20,6 +20,7 @@ if (!($testing || isAllowed())) {
 }
 
 $rows = readCSV($_FILES['despieces-csv']['tmp_name']);
+$void_product = void_product();
 $unique_assemblies = [];
 foreach ($rows as $i => $r) {
   if ($i == 0) continue;
@@ -32,35 +33,67 @@ foreach ($rows as $i => $r) {
     continue;
   }
   $arr = ['category' => $r[0], 'assembly' => $r[1]];
-  if (in_array($arr, $r)) continue;
+  if (in_array($arr, $unique_assemblies)) continue;
   array_push($unique_assemblies, $arr);
 }
 
 $warnings = [];
 
 foreach ($unique_assemblies as $i => $row) {
-  if ($i == 0) continue;
   try {
     $id = add_assembly($row['category'], $row['assembly'], $warnings);
     if ($id) {
       $name = $row['assembly'];
       $products = [];
       $filtered_rows = array_filter($rows, fn ($r) => $r[1] == $name);
-      foreach ($filtered_rows as $r) {
-        [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $r;
+      usort($filtered_rows, function ($a, $b) {
+        $a_position = $a[2];
+        $b_position = $b[2];
+        return $a_position - $b_position;
+      });
 
-        $part_id = wc_get_product_id_by_sku($part_ref);
-        if ($part_id <= 0) continue;
+      $max = $filtered_rows[count($filtered_rows) - 1][2];
+      {
+        $idx = 1;
+        $last_pos = 1;
+        while ($idx < $max -1) {
+          $current_row = $filtered_rows[$idx - 1];
+          [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
 
-        array_push($products, [
-          'id' => "$part_id",
-          'sku' => "$part_ref",
-          'qty' => "$part_qty",
-          'pos' => "$part_position"
-        ]);
+          for ($counter = $last_pos; $counter < $part_position -1; $counter++) {
+            echo json_encode([
+              "idx" => $idx,
+              "counter" => $counter,
+              "part_position" => $part_position
+            ]);
+            array_push($products, [
+              'id' => $void_product->ID,
+              'sku' => "producto-vacio-$counter",
+              'qty' => 0,
+              'pos' => "$counter"
+            ]);
+          }
+          // $skipped = $part_position != $idx;
+          $part_id = wc_get_product_id_by_sku($part_ref);
+          if ($part_id <= 0) $part_id = $void_product->ID;
+
+          [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
+          array_push($products, [
+            'id' => "$part_id",
+            'sku' => "$part_ref",
+            'qty' => $part_id == $void_product->ID ? 0 : "$part_qty",
+            'pos' => "$part_position"
+          ]);
+
+          $last_pos = $part_position;
+          $idx++;
+        }
+
+
       }
+      echo json_encode($products);
 
-      add_parts_to_bundle($id, $products);
+      set_bundle_parts($id, $products);
     }
   } catch (Throwable $e) {
     CsvImportResponse::failure($warnings, $e->getMessage());
@@ -159,22 +192,8 @@ function convert_to_bundle($assembly_id)
 
 }
 
-function add_parts_to_bundle($idDespiece, array $products)
+function set_bundle_parts($idDespiece, array $products)
 {
-  $despiece_bundle = get_post_meta($idDespiece, 'woosb_ids', true);
-  if (is_serialized($despiece_bundle)) {
-    unserialize($despiece_bundle);
-  }
-  if ($despiece_bundle == "") {
-    $despiece_bundle = [];
-  }
-
-  $i = 0;
-  foreach($despiece_bundle as &$despiece) {
-    $despiece['pos'] ??= $i;
-    $i++;
-  }
-
   $bundles = [];
   for ($i = 0; $i < count($products); $i++) {
     $product = $products[$i];
@@ -189,19 +208,34 @@ function add_parts_to_bundle($idDespiece, array $products)
       ]
     ];
 
-    $replaced = false;
-    foreach ($despiece_bundle as &$despiece) {
-      if ($despiece['sku'] == reset($bundle_item)['sku']) {
-        $despiece = reset($bundle_item);
-        $replaced = true;
-        break;
-      }
-    }
-    if (!$replaced) {
-      $despiece_bundle += $bundle_item;
-    }
+    $bundles += $bundle_item;
   }
 
-  usort($despiece_bundle, fn ($a, $b) => (int)$a['pos'] - (int)$b['pos']);
-  update_post_meta($idDespiece, 'woosb_ids', $despiece_bundle);
+  usort($bundles, fn ($a, $b) => (int)$a['pos'] - (int)$b['pos']);
+  update_post_meta($idDespiece, 'woosb_ids', $bundles);
+}
+
+
+function void_product()
+{
+  $void_posts = get_posts([
+    'numerposts' => 1,
+    'name' => 'void',
+    'post_type' => "product"
+  ]);
+
+  $id = count($void_posts) == 0 ? null : $void_posts[0];
+  if ($id == null) {
+    $id = wp_insert_post([
+      'post_author' => 1,
+      'post_content' => '',
+      'post_status' => "publish",
+      'post_title' => '(Vacío)',
+      'post_name' => 'void',
+      'post_parent' => '',
+      'post_type' => "product"
+    ]);
+  }
+
+  return $id;
 }

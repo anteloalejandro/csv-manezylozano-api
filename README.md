@@ -66,11 +66,11 @@ Indica si el usuario ha iniciado sesión como administrador o no.
 
 ## Formato del archivo CSV
 
-Los archivos CSV han de estar separados por comas y envueltos en comillas dobles. La primera línea siempre será ignorada, ya que se asume que es ahí donde está la cabecera de la tabla. Ej.:
+Los archivos CSV han de estar separados por punto y coma, y envueltos en comillas dobles. La primera línea siempre será ignorada, ya que se asume que es ahí donde está la cabecera de la tabla. Ej.:
 ```
-Artículo,Descripción,P.V.P.,Ubicación
-100803,MODULO GRIFOS C/PALANCAS M-2020,"49,5",
-101201,"JUNTA METAL-BUNA BSP 1/4""","0,18",4-183-1
+Artículo;Descripción;P.V.P.;Ubicación
+100803;MODULO GRIFOS C/PALANCAS M-2020;"49,5";
+101201;"JUNTA METAL-BUNA BSP 1/4""";"0,18";4-183-1
 ```
 
 ## Importador
