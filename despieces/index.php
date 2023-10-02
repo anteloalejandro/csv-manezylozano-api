@@ -52,39 +52,36 @@ foreach ($unique_assemblies as $i => $row) {
         return $a_position - $b_position;
       });
 
-      $max = $filtered_rows[count($filtered_rows) - 1][2];
-      {
-        $idx = 1;
-        $last_pos = 1;
-        while ($idx < $max -1) {
-          $current_row = $filtered_rows[$idx - 1];
-          [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
+      $last_pos = 1;
+      for ($idx = 0; $idx < count($filtered_rows); $idx++) {
+        $current_row = $filtered_rows[$idx];
+        [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
 
-          for ($counter = $last_pos; $counter < $part_position -1; $counter++) {
-            array_push($products, [
-              'id' => $void_product->ID,
-              'sku' => "producto-vacio-$counter",
-              'qty' => 0,
-              'pos' => "$counter"
-            ]);
-          }
-          // $skipped = $part_position != $idx;
-          $part_id = wc_get_product_id_by_sku($part_ref);
-          if ($part_id <= 0) $part_id = $void_product->ID;
-
-          [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
-          array_push($products, [
-            'id' => "$part_id",
-            'sku' => "$part_ref",
-            'qty' => $part_id == $void_product->ID ? 0 : "$part_qty",
-            'pos' => "$part_position"
-          ]);
-
-          $last_pos = $part_position;
-          $idx++;
+        if ($last_pos > 1 && $last_pos == $part_position) {
+          continue;
         }
 
+        for ($counter = $last_pos; $counter < $part_position - 1; $counter++) {
+          array_push($products, [
+            'id' => $void_product->ID,
+            'sku' => "producto-vacio-$counter",
+            'qty' => 0,
+            'pos' => "$counter"
+          ]);
+        }
+        // $skipped = $part_position != $idx;
+        $part_id = wc_get_product_id_by_sku($part_ref);
+        if ($part_id <= 0) $part_id = $void_product->ID;
 
+        [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
+        array_push($products, [
+          'id' => "$part_id",
+          'sku' => "$part_ref",
+          'qty' => $part_id == $void_product->ID ? 0 : "$part_qty",
+          'pos' => "$part_position"
+        ]);
+
+        $last_pos = $part_position;
       }
 
       set_bundle_parts($id, $products);
