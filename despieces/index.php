@@ -61,11 +61,6 @@ foreach ($unique_assemblies as $i => $row) {
           [$category_name, $assembly_name, $part_position, $part_ref, $part_qty] = $current_row;
 
           for ($counter = $last_pos; $counter < $part_position -1; $counter++) {
-            echo json_encode([
-              "idx" => $idx,
-              "counter" => $counter,
-              "part_position" => $part_position
-            ]);
             array_push($products, [
               'id' => $void_product->ID,
               'sku' => "producto-vacio-$counter",
@@ -91,7 +86,6 @@ foreach ($unique_assemblies as $i => $row) {
 
 
       }
-      echo json_encode($products);
 
       set_bundle_parts($id, $products);
     }
