@@ -45,7 +45,7 @@ CSVforEach($_FILES['piezas-csv']['tmp_name'], function ($i, $row, &$warnings) {
     return;
   }
   try {
-    add_part($row, $i, $warnings);
+    add_part($row, $warnings);
   } catch (Throwable $e) {
     $error_str = json_encode([
       "stack_trace" => "$e",
@@ -59,7 +59,7 @@ CSVforEach($_FILES['piezas-csv']['tmp_name'], function ($i, $row, &$warnings) {
 CsvImportResponse::success($warnings);
 
 
-function add_part(array $row, int $position, &$warning_arr)
+function add_part(array $row, &$warning_arr)
 {
   /* TO-DO
       Visibilidad
