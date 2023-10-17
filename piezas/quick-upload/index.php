@@ -36,8 +36,6 @@ $data = json_decode($json, true);
   ];
 */
 
-$warnings = [];
-
 wp_insert_term(
   'Piezas',
   'product_cat',
@@ -51,7 +49,7 @@ foreach ($data as $i => $d) {
   add_part($d['ref'], $d['name'], $d['price'], $d['estanteria']);
 }
 
-CsvImportResponse::success($warnings);
+CsvImportResponse::success([]);
 
 function add_part($ref, $name, $price, $estanteria)
 {
